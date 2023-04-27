@@ -12,6 +12,8 @@ export async function dotnetPublish(filePath: string) {
         command = publishFromProject(filePath);
     else if (extension === '.pubxml')
         command = publishFromProfile(filePath);
+    else if (extension === '.cs')
+        command = publishFromContent(filePath);
 
         await command?.then(x => {
             const terminal = utils.getTerminalOrNew('dotnet')
@@ -19,6 +21,15 @@ export async function dotnetPublish(filePath: string) {
             terminal.show();
             terminal.sendText(x);
         })
+}
+
+async function publishFromContent(filePath: string) : Promise<string> {
+    const csprojOrSln = lookupForProjectOrSolution(path.dirname(filePath));
+    
+    if (csprojOrSln === undefined) 
+        throw Error("Project or solution not found");
+
+    return publishFromProject(csprojOrSln);
 }
 
 async function publishFromProject(projectPath: string): Promise<string> {
@@ -40,29 +51,37 @@ async function publishFromProject(projectPath: string): Promise<string> {
     return `dotnet publish ${projectPath} /p:PublishProfile=${path.join(publishDir, profile)}`
 }
 
-async function publishFromProfile(profilePath: string): Promise<string> {
+function lookupForProjectOrSolution(xPath: string): string | undefined {
 
-    var result = path.dirname(profilePath);
-    var csprojOrSln = undefined;
-    var parent = undefined;
+    var parent;
+    var child = xPath;
+    var result = undefined;
 
     do {
-        parent = path.dirname(result);
 
-        if (parent === result)
-            throw new Error("Project not found");
+        parent = child;
+        const files = fs.readdirSync(parent);
 
-        result = parent;
-
-        const files = fs.readdirSync(result);
-
-        csprojOrSln = files.find(x => {
+        result = files.find(x => {
             console.log(x);
             const ext = path.extname(x);
             return ext === ".csproj" || ext === ".sln";
         });
 
-    } while (!csprojOrSln);
+        if (!result)
+            child = path.dirname(parent);
 
-    return `dotnet publish ${path.join(parent, csprojOrSln)} /p:PublishProfile=${profilePath}`;
+    } while (!result && parent !== child);
+
+    return result !== undefined ? path.join(parent ?? child, result) : result;
+}
+
+async function publishFromProfile(profilePath: string): Promise<string> {
+
+    var csprojOrSln = lookupForProjectOrSolution(path.dirname(profilePath));
+    
+    if (csprojOrSln === undefined) 
+        throw Error("Project or solution not found");
+
+    return `dotnet publish ${csprojOrSln} /p:PublishProfile=${profilePath}`;
 }

@@ -30,7 +30,14 @@
         {
           "command": "dotnet.publish",
           "group": "2_workspace@1",
-          "when": "resourceExtname == .csproj || resourceExtname == .pubxml"
+          "when": "resourceExtname == .csproj || resourceExtname == .pubxml || resourceExtname == .cs"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "dotnet.publish",
+          "group": "z_commands",
+          "when": "resourceExtname == .csproj || resourceExtname == .pubxml || resourceExtname == .cs"
         }
       ]
     }
